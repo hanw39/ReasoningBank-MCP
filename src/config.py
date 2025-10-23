@@ -1,0 +1,142 @@
+"""配置管理模块"""
+import os
+import yaml
+from pathlib import Path
+from typing import Dict, Any
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
+
+
+class Config:
+    """配置管理类"""
+
+    def __init__(self, config_path: str = "config.yaml"):
+        self.config_path = Path(config_path)
+        self._config: Dict[str, Any] = {}
+        self._load_config()
+
+    def _load_config(self):
+        """加载配置文件"""
+        if not self.config_path.exists():
+            raise FileNotFoundError(f"配置文件不存在: {self.config_path}")
+
+        with open(self.config_path, 'r', encoding='utf-8') as f:
+            self._config = yaml.safe_load(f)
+
+        # 替换环境变量
+        self._replace_env_variables(self._config)
+
+    def _replace_env_variables(self, config: Any) -> Any:
+        """
+        递归替换配置中的环境变量
+
+        支持的格式:
+        - ${VAR_NAME}           : 必需的环境变量，不存在时抛出异常
+        - ${VAR_NAME?}          : 可选的环境变量，不存在时返回空字符串
+        - ${VAR_NAME:default}   : 带默认值的环境变量，不存在时使用默认值
+        """
+        if isinstance(config, dict):
+            for key, value in config.items():
+                config[key] = self._replace_env_variables(value)
+        elif isinstance(config, list):
+            return [self._replace_env_variables(item) for item in config]
+        elif isinstance(config, str):
+            # 替换 ${VAR_NAME} 格式的环境变量
+            if config.startswith("${") and config.endswith("}"):
+                var_spec = config[2:-1]
+
+                # 支持带默认值: ${VAR_NAME:default_value}
+                if ':' in var_spec:
+                    var_name, default_value = var_spec.split(':', 1)
+                    return os.getenv(var_name, default_value)
+
+                # 支持可选环境变量: ${VAR_NAME?}
+                if var_spec.endswith('?'):
+                    var_name = var_spec[:-1]
+                    return os.getenv(var_name, "")
+
+                # 必需的环境变量
+                env_value = os.getenv(var_spec)
+                if env_value is None:
+                    raise ValueError(f"环境变量未设置: {var_spec}")
+                return env_value
+
+        return config
+
+    def get(self, *keys, default=None) -> Any:
+        """
+        获取配置值
+
+        例如: config.get('llm', 'provider') -> 'dashscope'
+        """
+        value = self._config
+        for key in keys:
+            if isinstance(value, dict):
+                value = value.get(key, default)
+            else:
+                return default
+        return value
+
+    def get_llm_config(self) -> Dict[str, Any]:
+        """获取 LLM 配置"""
+        provider = self.get('llm', 'provider')
+        return {
+            'provider': provider,
+            **self.get('llm', provider, default={})
+        }
+
+    def get_embedding_config(self) -> Dict[str, Any]:
+        """获取 Embedding 配置"""
+        provider = self.get('embedding', 'provider')
+        return {
+            'provider': provider,
+            **self.get('embedding', provider, default={})
+        }
+
+    def get_retrieval_config(self) -> Dict[str, Any]:
+        """获取检索配置"""
+        strategy = self.get('retrieval', 'strategy')
+        return {
+            'strategy': strategy,
+            'default_top_k': self.get('retrieval', 'default_top_k', default=1),
+            'max_top_k': self.get('retrieval', 'max_top_k', default=10),
+            'strategy_config': self.get('retrieval', strategy, default={})
+        }
+
+    def get_storage_config(self) -> Dict[str, Any]:
+        """获取存储配置"""
+        backend = self.get('storage', 'backend')
+        return {
+            'backend': backend,
+            **self.get('storage', backend, default={})
+        }
+
+    def get_extraction_config(self) -> Dict[str, Any]:
+        """获取记忆提取配置"""
+        return self.get('extraction', default={})
+
+    @property
+    def all(self) -> Dict[str, Any]:
+        """返回完整配置"""
+        return self._config
+
+
+# 全局配置实例
+_global_config: Config = None
+
+
+def load_config(config_path: str = "config.yaml") -> Config:
+    """加载全局配置"""
+    global _global_config
+    _global_config = Config(config_path)
+    return _global_config
+
+
+def get_config() -> Config:
+    """获取全局配置实例"""
+    global _global_config
+    if _global_config is None:
+        _global_config = Config()
+    return _global_config
