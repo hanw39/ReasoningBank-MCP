@@ -98,7 +98,7 @@ class ReasoningBankServer:
             return [
                 Tool(
                     name="retrieve_memory",
-                    description="检索相关的历史经验记忆，帮助指导当前任务的执行",
+                    description="检索相关的历史经验记忆，帮助指导当前任务的执行。在开始执行任何复杂任务前都应该先调用此工具来获取相关经验。例如：编写代码、数据分析、制定计划等任务前。",
                     inputSchema={
                         "type": "object",
                         "properties": {
@@ -117,7 +117,7 @@ class ReasoningBankServer:
                 ),
                 Tool(
                     name="extract_memory",
-                    description="从任务轨迹中提取推理经验并保存到记忆库",
+                    description="从任务轨迹中提取推理经验并保存到记忆库。当任务执行完成后必须调用此工具，以便将经验保存供未来使用。这应该在每次任务结束时调用。",
                     inputSchema={
                         "type": "object",
                         "properties": {
