@@ -262,8 +262,8 @@ PermissionError: [Errno 13] Permission denied: 'data/memories.json'
 
 ## 📚 更多资源
 
-- [完整文档](README.md)
-- [配置说明](config.yaml)
+- [完整文档](../README.md)
+- [配置说明](../config.yaml)
 - [实现计划](IMPLEMENTATION_PLAN.md)
 - [论文原文](Appendix AExperiment Details.docx)
 

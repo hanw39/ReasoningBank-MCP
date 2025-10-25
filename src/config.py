@@ -13,9 +13,65 @@ class Config:
     """配置管理类"""
 
     def __init__(self, config_path: str = "config.yaml"):
-        self.config_path = Path(config_path)
+        """
+        初始化配置
+
+        Args:
+            config_path: 配置文件路径，支持：
+                - 绝对路径：如 "/path/to/config.yaml"
+                - 相对路径：会依次在以下位置查找
+                  1. 当前工作目录
+                  2. 项目根目录（pyproject.toml 所在目录）
+                  3. ~/.reasoningbank/config.yaml
+        """
+        self.config_path = self._resolve_config_path(config_path)
         self._config: Dict[str, Any] = {}
         self._load_config()
+
+    def _resolve_config_path(self, config_path: str) -> Path:
+        """
+        智能解析配置文件路径
+
+        查找顺序：
+        1. 如果是绝对路径且存在，直接使用
+        2. 当前工作目录
+        3. 项目根目录（从 src/config.py 向上查找 pyproject.toml）
+        4. 用户主目录 ~/.reasoningbank/
+        """
+        path = Path(config_path)
+
+        # 1. 绝对路径直接使用
+        if path.is_absolute():
+            return path
+
+        # 2. 当前工作目录
+        cwd_path = Path.cwd() / config_path
+        if cwd_path.exists():
+            return cwd_path
+
+        # 3. 项目根目录（向上查找 pyproject.toml）
+        # 从当前文件所在目录（src/）开始向上查找
+        current_file = Path(__file__).resolve()  # src/config.py
+        src_dir = current_file.parent              # src/
+        project_root = src_dir.parent              # 项目根目录
+
+        # 验证是否找到项目根目录（检查 pyproject.toml）
+        if (project_root / "pyproject.toml").exists():
+            project_config = project_root / config_path
+            if project_config.exists():
+                return project_config
+
+        # 4. 用户主目录
+        home_path = Path.home() / ".reasoningbank" / config_path
+        if home_path.exists():
+            return home_path
+
+        # 如果都没找到，优先使用项目根目录路径（即使不存在，错误信息也更清晰）
+        if (project_root / "pyproject.toml").exists():
+            return project_root / config_path
+
+        # 最后返回当前工作目录路径
+        return cwd_path
 
     def _load_config(self):
         """加载配置文件"""

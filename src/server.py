@@ -215,5 +215,11 @@ async def main():
     await server.run()
 
 
-if __name__ == "__main__":
+def run_server():
+    """运行服务器的同步入口点"""
+    import asyncio
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    run_server()

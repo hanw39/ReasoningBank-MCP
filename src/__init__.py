@@ -4,11 +4,13 @@ __author__ = "Your Name"
 __description__ = "Memory-augmented reasoning for AI agents via MCP"
 
 from .config import load_config, get_config
-from .server import ReasoningBankServer, main
+# 注意：为了避免循环导入和RuntimeWarning，不从server模块导入ReasoningBankServer和main
+
+# 为了脚本入口点，我们需要导入run_server函数
+from .server import run_server
 
 __all__ = [
     "load_config",
     "get_config",
-    "ReasoningBankServer",
-    "main",
+    "run_server",  # 为脚本入口点导出
 ]

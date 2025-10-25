@@ -3,7 +3,7 @@ name = "reasoning-bank-mcp"
 version = "0.1.0"
 description = "ReasoningBank MCP Server - Memory-augmented reasoning for AI agents"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Wang Han", email = "hanw57276@gmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,7 +32,7 @@ build-backend = "hatchling.build"
 
 [tool.black]
 line-length = 100
-target-version = ['py310']
+target-version = 'py310'
 
 [tool.ruff]
 line-length = 100
@@ -42,4 +42,4 @@ target-version = "py310"
 packages = ["src"]
 
 [project.scripts]
-reasoning-bank-mcp = "src.server:main"
+reasoning-bank-mcp = "src.server:run_server"
