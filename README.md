@@ -39,6 +39,29 @@ reasoning-bank-mcp/
 ```
 
 ## 🚀 快速开始
+### 1. 代码拉取并进入项目根目录
+
+### 2. 安装依赖
+
+```bash
+pip install -e .
+```
+### 3. 在 Qoder、Cherry Studio 中配置
+
+```json
+{
+  "mcpServers": {
+    "reasoning-bank": {
+      "command": "reasoning-bank-mcp",
+      "env": {
+        "DASHSCOPE_API_KEY": "百炼APIKEY"
+      }
+    }
+  }
+}
+```
+
+
 
 ### 1. 安装依赖
 
