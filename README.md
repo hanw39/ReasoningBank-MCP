@@ -1,6 +1,6 @@
 # ReasoningBank MCP Server
 
-基于论文实现的记忆增强推理系统，通过 MCP (Model Context Protocol) 协议为 AI 代理提供经验记忆管理能力。
+基于论文ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory[https://arxiv.org/abs/2509.25140] 实现的记忆增强推理系统，通过 MCP (Model Context Protocol) 协议为 AI 代理提供经验记忆管理能力。
 
 ## 🌟 特性
 
