@@ -1,11 +1,55 @@
 """配置管理模块"""
 import os
 import yaml
+import logging
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 
-# 加载环境变量
+# 配置日志
+logger = logging.getLogger(__name__)
+
+
+# def _find_dotenv_file() -> Optional[Path]:
+#     """
+#     智能查找 .env 文件
+#
+#     查找顺序：
+#     1. 当前工作目录
+#     2. 项目根目录（从 src/config.py 向上查找 pyproject.toml）
+#
+#     Returns:
+#         Path 对象或 None
+#     """
+#     # 1. 当前工作目录
+#     cwd_env = Path.cwd() / ".env"
+#     if cwd_env.exists():
+#         logger.debug(f"找到 .env 文件: {cwd_env}")
+#         return cwd_env
+#
+#     # 2. 项目根目录
+#     current_file = Path(__file__).resolve()  # src/config.py
+#     src_dir = current_file.parent            # src/
+#     project_root = src_dir.parent            # 项目根目录
+#
+#     if (project_root / "pyproject.toml").exists():
+#         project_env = project_root / ".env"
+#         if project_env.exists():
+#             logger.debug(f"找到 .env 文件: {project_env}")
+#             return project_env
+#
+#     logger.debug(".env 文件未找到")
+#     return None
+#
+#
+# # 加载环境变量（优先使用已存在的环境变量，如 MCP 传递的）
+# dotenv_path = _find_dotenv_file()
+# if dotenv_path:
+#     # override=False 确保不覆盖已存在的环境变量（如 MCP 传递的）
+#     load_dotenv(dotenv_path, override=False)
+#     logger.debug(f"已加载 .env 文件: {dotenv_path}")
+# else:
+#     logger.debug("未找到 .env 文件，将仅使用系统环境变量")
 load_dotenv()
 
 
@@ -116,7 +160,27 @@ class Config:
                 # 必需的环境变量
                 env_value = os.getenv(var_spec)
                 if env_value is None:
-                    raise ValueError(f"环境变量未设置: {var_spec}")
+                    # 提供详细的错误信息
+                    error_msg = f"环境变量未设置: {var_spec}\n\n"
+                    error_msg += "解决方案：\n"
+                    error_msg += "1. 如果使用 MCP，请在配置中添加：\n"
+                    error_msg += '   {\n'
+                    error_msg += '     "env": {\n'
+                    error_msg += f'       "{var_spec}": "your-api-key-here"\n'
+                    error_msg += '     }\n'
+                    error_msg += '   }\n\n'
+                    error_msg += "2. 或在项目根目录创建 .env 文件：\n"
+                    error_msg += f'   {var_spec}=your-api-key-here\n\n'
+
+                    # 显示 .env 文件的查找路径
+                    # dotenv_file = _find_dotenv_file()
+                    # if dotenv_file:
+                    #     error_msg += f"3. 当前加载的 .env 文件: {dotenv_file}\n"
+                    #     error_msg += f"   请确认该文件包含 {var_spec} 配置"
+                    # else:
+                    #     error_msg += f"3. 未找到 .env 文件"
+
+                    raise ValueError(error_msg)
                 return env_value
 
         return config
