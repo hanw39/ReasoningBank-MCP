@@ -40,7 +40,9 @@ reasoning-bank-mcp/
 
 ## 🚀 快速开始
 ### 1. 代码拉取并进入项目根目录
-
+```bash
+git clone https://github.com/hanw39/ReasoningBank-MCP.git
+```
 ### 2. 安装依赖
 
 ```bash
