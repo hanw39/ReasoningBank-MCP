@@ -110,6 +110,10 @@ class ReasoningBankServer:
                                 "type": "number",
                                 "description": "检索的记忆数量（可选，默认1）",
                                 "default": 1
+                            },
+                            "agent_id": {
+                                "type": "string",
+                                "description": "Agent ID（可选）。用于多租户隔离，只检索指定 agent 的记忆。不提供时检索所有记忆。建议 SubAgent 传递自己的 name 作为 agent_id。"
                             }
                         },
                         "required": ["query"]
@@ -146,6 +150,10 @@ class ReasoningBankServer:
                             "async_mode": {
                                 "type": "boolean",
                                 "description": "是否异步处理（可选，默认true）"
+                            },
+                            "agent_id": {
+                                "type": "string",
+                                "description": "Agent ID（可选）。用于多租户隔离，标记记忆属于哪个 agent。建议 SubAgent 传递自己的 name 作为 agent_id。"
                             }
                         },
                         "required": ["trajectory", "query"]
@@ -160,14 +168,16 @@ class ReasoningBankServer:
                 if name == "retrieve_memory":
                     result = await self.retrieve_tool.execute(
                         query=arguments["query"],
-                        top_k=arguments.get("top_k")
+                        top_k=arguments.get("top_k"),
+                        agent_id=arguments.get("agent_id")
                     )
                 elif name == "extract_memory":
                     result = await self.extract_tool.execute(
                         trajectory=arguments["trajectory"],
                         query=arguments["query"],
                         success_signal=arguments.get("success_signal"),
-                        async_mode=arguments.get("async_mode")
+                        async_mode=arguments.get("async_mode"),
+                        agent_id=arguments.get("agent_id")
                     )
                 else:
                     result = {"status": "error", "message": f"Unknown tool: {name}"}

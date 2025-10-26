@@ -91,16 +91,20 @@ class HybridRetrievalStrategy(RetrievalStrategy):
         query_embedding: np.ndarray,
         storage_backend,
         top_k: int = 1,
+        agent_id: str = None,
         **kwargs
     ) -> List[Tuple[str, float]]:
         """
         使用混合评分检索记忆
 
         score = w1*semantic + w2*confidence + w3*success - w4*(1-recency)
+
+        Args:
+            agent_id: Agent ID，用于过滤记忆
         """
-        # 获取所有记忆
-        memory_embeddings = await storage_backend.get_all_embeddings()
-        memories = await storage_backend.get_all_memories()
+        # 获取所有记忆（支持 agent_id 过滤）
+        memory_embeddings = await storage_backend.get_all_embeddings(agent_id)
+        memories = await storage_backend.get_all_memories(agent_id)
 
         if not memories or not memory_embeddings:
             return []

@@ -14,15 +14,19 @@ class CosineRetrievalStrategy(RetrievalStrategy):
         query_embedding: np.ndarray,
         storage_backend,
         top_k: int = 1,
+        agent_id: str = None,
         **kwargs
     ) -> List[Tuple[str, float]]:
         """
         使用余弦相似度检索记忆
 
         这是论文中使用的基线方法
+
+        Args:
+            agent_id: Agent ID，用于过滤记忆
         """
-        # 获取所有记忆的嵌入
-        memory_embeddings = await storage_backend.get_all_embeddings()
+        # 获取所有记忆的嵌入（支持 agent_id 过滤）
+        memory_embeddings = await storage_backend.get_all_embeddings(agent_id)
 
         if not memory_embeddings:
             return []

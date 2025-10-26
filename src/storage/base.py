@@ -32,9 +32,12 @@ class StorageBackend(ABC):
         pass
 
     @abstractmethod
-    async def get_all_memories(self) -> List[Dict]:
+    async def get_all_memories(self, agent_id: str = None) -> List[Dict]:
         """
         获取所有记忆
+
+        Args:
+            agent_id: Agent ID，用于过滤。None 表示获取所有记忆
 
         Returns:
             记忆项列表
@@ -42,9 +45,12 @@ class StorageBackend(ABC):
         pass
 
     @abstractmethod
-    async def get_all_embeddings(self) -> Dict[str, np.ndarray]:
+    async def get_all_embeddings(self, agent_id: str = None) -> Dict[str, np.ndarray]:
         """
         获取所有嵌入向量
+
+        Args:
+            agent_id: Agent ID，用于过滤。None 表示获取所有嵌入
 
         Returns:
             {memory_id: embedding_vector} 字典

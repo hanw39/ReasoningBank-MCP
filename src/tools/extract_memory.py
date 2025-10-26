@@ -37,7 +37,8 @@ class ExtractMemoryTool:
         trajectory: List[Dict],
         query: str,
         success_signal: Optional[bool] = None,
-        async_mode: bool = None
+        async_mode: bool = None,
+        agent_id: str = None
     ) -> Dict:
         """
         执行记忆提取
@@ -47,6 +48,7 @@ class ExtractMemoryTool:
             query: 任务查询
             success_signal: 成功/失败标记，None 时自动判断
             async_mode: 是否异步处理，None 时使用配置默认值
+            agent_id: Agent ID，用于多租户隔离
 
         Returns:
             提取结果字典
@@ -61,7 +63,7 @@ class ExtractMemoryTool:
         if async_mode:
             # 异步模式：立即返回，后台处理
             asyncio.create_task(
-                self._extract_async(task_id, trajectory, query, success_signal)
+                self._extract_async(task_id, trajectory, query, success_signal, agent_id)
             )
             return {
                 "status": "processing",
@@ -71,7 +73,7 @@ class ExtractMemoryTool:
             }
         else:
             # 同步模式：等待处理完成
-            result = await self._extract_sync(trajectory, query, success_signal)
+            result = await self._extract_sync(trajectory, query, success_signal, agent_id)
             return {
                 **result,
                 "task_id": task_id,
@@ -82,7 +84,8 @@ class ExtractMemoryTool:
         self,
         trajectory: List[Dict],
         query: str,
-        success_signal: Optional[bool]
+        success_signal: Optional[bool],
+        agent_id: str = None
     ) -> Dict:
         """同步提取记忆"""
         try:
@@ -122,6 +125,7 @@ class ExtractMemoryTool:
                 # 构建完整记忆项
                 memory = {
                     "memory_id": memory_id,
+                    "agent_id": agent_id,
                     "timestamp": current_time,
                     "success": success_signal,
                     "title": mem_data["title"],
@@ -171,11 +175,12 @@ class ExtractMemoryTool:
         task_id: str,
         trajectory: List[Dict],
         query: str,
-        success_signal: Optional[bool]
+        success_signal: Optional[bool],
+        agent_id: str = None
     ):
         """异步提取记忆（后台任务）"""
         # 直接调用同步提取逻辑
-        await self._extract_sync(trajectory, query, success_signal)
+        await self._extract_sync(trajectory, query, success_signal, agent_id)
         # 注意：异步模式下，结果不返回给调用者，只记录到日志或存储
 
     async def _judge_trajectory(self, trajectory: List[Dict], query: str) -> bool:

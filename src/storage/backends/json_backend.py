@@ -92,17 +92,47 @@ class JSONStorageBackend(StorageBackend):
                 return mem
         return None
 
-    async def get_all_memories(self) -> List[Dict]:
-        """获取所有记忆"""
-        memories_data = self._load_memories()
-        return memories_data["memories"]
+    async def get_all_memories(self, agent_id: str = None) -> List[Dict]:
+        """
+        获取所有记忆
 
-    async def get_all_embeddings(self) -> Dict[str, np.ndarray]:
-        """获取所有嵌入向量"""
+        Args:
+            agent_id: Agent ID，用于过滤。None 表示获取所有记忆
+        """
+        memories_data = self._load_memories()
+        all_memories = memories_data["memories"]
+
+        # 如果指定了 agent_id，只返回匹配的记忆
+        if agent_id is not None:
+            return [m for m in all_memories if m.get("agent_id") == agent_id]
+
+        # 否则返回所有记忆
+        return all_memories
+
+    async def get_all_embeddings(self, agent_id: str = None) -> Dict[str, np.ndarray]:
+        """
+        获取所有嵌入向量
+
+        Args:
+            agent_id: Agent ID，用于过滤。None 表示获取所有嵌入
+        """
         embeddings_data = self._load_embeddings()
+
+        if agent_id is None:
+            # 返回所有
+            return {
+                mem_id: np.array(data["vector"])
+                for mem_id, data in embeddings_data["embeddings"].items()
+            }
+
+        # 需要先获取记忆列表，找出属于该 agent 的 memory_id
+        memories = await self.get_all_memories(agent_id)
+        memory_ids = {m["memory_id"] for m in memories}
+
         return {
             mem_id: np.array(data["vector"])
             for mem_id, data in embeddings_data["embeddings"].items()
+            if mem_id in memory_ids
         }
 
     async def update_retrieval_stats(self, memory_id: str, timestamp: str):

@@ -22,13 +22,14 @@ class RetrieveMemoryTool:
         self.embedding = embedding_provider
         self.retrieval = retrieval_strategy
 
-    async def execute(self, query: str, top_k: int = None) -> Dict:
+    async def execute(self, query: str, top_k: int = None, agent_id: str = None) -> Dict:
         """
         执行记忆检索
 
         Args:
             query: 任务查询
             top_k: 检索数量，默认使用配置中的值
+            agent_id: Agent ID，用于多租户隔离
 
         Returns:
             检索结果字典
@@ -51,7 +52,8 @@ class RetrieveMemoryTool:
                 query=query,
                 query_embedding=query_vec,
                 storage_backend=self.storage,
-                top_k=top_k
+                top_k=top_k,
+                agent_id=agent_id
             )
 
             if not top_k_results:
