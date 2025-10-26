@@ -1,10 +1,16 @@
 """ReasoningBank MCP 服务器"""
 import asyncio
 import logging
+import argparse
 from typing import Any
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
+from mcp.server.sse import SseServerTransport
 from mcp.types import Tool, TextContent
+from starlette.applications import Starlette
+from starlette.routing import Route, Mount
+from starlette.responses import Response
+import uvicorn
 
 from .config import load_config
 from .llm import LLMFactory, EmbeddingFactory
@@ -199,9 +205,9 @@ class ReasoningBankServer:
                     }, ensure_ascii=False, indent=2)
                 )]
 
-    async def run(self):
-        """运行服务器"""
-        logger.info("正在启动 ReasoningBank MCP 服务器...")
+    async def run_stdio(self):
+        """使用 STDIO 运行服务器"""
+        logger.info("正在启动 ReasoningBank MCP 服务器 (STDIO 模式)...")
 
         # 初始化组件
         await self.initialize()
@@ -218,11 +224,75 @@ class ReasoningBankServer:
                 self.server.create_initialization_options()
             )
 
+    async def run_sse(self, host: str = "127.0.0.1", port: int = 8000):
+        """使用 SSE 运行服务器"""
+        logger.info(f"正在启动 ReasoningBank MCP 服务器 (SSE 模式) 在 {host}:{port}...")
+
+        # 初始化组件
+        await self.initialize()
+
+        # 设置处理器
+        self.setup_handlers()
+
+        # 创建 SSE 传输层
+        sse = SseServerTransport("/messages/")
+
+        async def handle_sse(request):
+            """处理 SSE 连接"""
+            async with sse.connect_sse(
+                request.scope, request.receive, request._send
+            ) as streams:
+                await self.server.run(
+                    streams[0], streams[1], self.server.create_initialization_options()
+                )
+            return Response()
+
+        # 创建 Starlette 应用
+        app = Starlette(
+            routes=[
+                Route("/sse", endpoint=handle_sse, methods=["GET"]),
+                Mount("/messages/", app=sse.handle_post_message),
+            ]
+        )
+
+        logger.info("✓ 服务器已启动，等待连接...")
+        logger.info(f"  SSE 端点: http://{host}:{port}/sse")
+
+        # 运行服务器
+        config = uvicorn.Config(app, host=host, port=port, log_level="info")
+        server = uvicorn.Server(config)
+        await server.serve()
+
 
 async def main():
     """主函数"""
+    parser = argparse.ArgumentParser(description="ReasoningBank MCP 服务器")
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "sse"],
+        default="stdio",
+        help="传输方式: stdio (默认) 或 sse"
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="SSE 模式的主机地址 (默认: 127.0.0.1)"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="SSE 模式的端口号 (默认: 8000)"
+    )
+
+    args = parser.parse_args()
+
     server = ReasoningBankServer()
-    await server.run()
+
+    if args.transport == "stdio":
+        await server.run_stdio()
+    else:  # sse
+        await server.run_sse(host=args.host, port=args.port)
 
 
 def run_server():

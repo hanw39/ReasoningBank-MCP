@@ -39,62 +39,22 @@ reasoning-bank-mcp/
 ```
 
 ## 🚀 快速开始
+
 ### 1. 代码拉取并进入项目根目录
 ```bash
 git clone https://github.com/hanw39/ReasoningBank-MCP.git
+cd ReasoningBank-MCP
 ```
+
 ### 2. 安装依赖
 
 ```bash
 pip install -e .
 ```
-### 3. 在 Qoder、Cherry Studio 中配置
 
-```json
-{
-  "mcpServers": {
-    "reasoning-bank": {
-      "command": "reasoning-bank-mcp",
-      "env": {
-        "DASHSCOPE_API_KEY": "百炼APIKEY"
-      }
-    }
-  }
-}
-```
+### 3. 配置 MCP 客户端
 
-
-
-### 1. 安装依赖
-
-```bash
-pip install -e .
-```
-
-### 2. 配置环境变量
-
-创建 `.env` 文件：
-
-```env
-# DashScope (通义千问) API
-DASHSCOPE_API_KEY=your-api-key-here
-
-# 可选：其他模型 API
-OPENAI_API_KEY=your-openai-key
-ANTHROPIC_API_KEY=your-anthropic-key
-```
-
-### 3. 配置文件
-
-编辑 `config.yaml`（见配置示例）
-
-### 4. 启动 MCP 服务器
-
-```bash
-python -m src.server
-```
-
-### 5. 在 Claude Desktop 中配置
+#### 方式一：STDIO 模式（适用于 Claude Desktop）
 
 编辑 `~/Library/Application Support/Claude/claude_desktop_config.json`：
 
@@ -102,12 +62,79 @@ python -m src.server
 {
   "mcpServers": {
     "reasoning-bank": {
-      "command": "python",
-      "args": ["-m", "src.server"],
-      "cwd": "/path/to/reasoning-bank-mcp"
+      "command": "reasoning-bank-mcp",
+      "env": {
+        "DASHSCOPE_API_KEY": "你的百炼APIKEY"
+      }
     }
   }
 }
+```
+
+#### 方式二：SSE 模式（适用于 Qoder、Cherry Studio 等）
+
+**1) 启动服务器**：
+```bash
+# 使用默认配置 (127.0.0.1:8000)
+python3 -m src.server --transport sse
+
+# 或指定主机和端口
+python3 -m src.server --transport sse --host 0.0.0.0 --port 8080
+```
+
+**2) 客户端配置**：
+```json
+{
+  "mcpServers": {
+    "reasoning-bank": {
+      "url": "http://127.0.0.1:8000/sse",
+      "env": {
+        "DASHSCOPE_API_KEY": "你的百炼APIKEY"
+      }
+    }
+  }
+}
+```
+
+### 4. 命令行参数
+
+```bash
+python3 -m src.server --help
+
+# 可用参数：
+# --transport {stdio,sse}  传输方式 (默认: stdio)
+# --host HOST              SSE 模式的主机地址 (默认: 127.0.0.1)
+# --port PORT              SSE 模式的端口号 (默认: 8000)
+```
+
+
+## 🔧 配置文件（可选）
+
+如果需要自定义配置，可以编辑 `config.yaml`：
+
+```yaml
+# LLM Provider 配置
+llm:
+  provider: "dashscope"
+  dashscope:
+    api_key: "${DASHSCOPE_API_KEY}"
+    chat_model: "qwen-plus"
+
+# Embedding Provider 配置
+embedding:
+  provider: "dashscope"
+  dashscope:
+    model: "text-embedding-v3"
+
+# 检索策略配置
+retrieval:
+  strategy: "hybrid"
+  hybrid:
+    weights:
+      semantic: 0.6
+      confidence: 0.2
+      success: 0.15
+      recency: 0.05
 ```
 
 ## 🔧 MCP 工具
