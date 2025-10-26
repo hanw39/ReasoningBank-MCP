@@ -141,11 +141,16 @@ retrieval:
 
 ### `retrieve_memory`
 
-检索相关的历史经验记忆。
+检索相关的历史经验记忆，帮助指导当前任务的执行。
 
 **参数**：
-- `query` (string): 当前任务查询
-- `top_k` (number, 可选): 检索数量，默认 1
+- `query` (string, 必填): 当前任务的查询描述
+- `top_k` (number, 可选): 检索的记忆数量，默认 1
+- `agent_id` (string, 可选): Agent ID，用于多租户隔离
+  - 只检索指定 agent 的记忆
+  - 不提供时检索所有记忆
+  - 建议 SubAgent 传递自己的 name 作为 agent_id
+  - 例如：`"claude-code"`、`"code-reviewer"` 等
 
 **返回**：
 ```json
@@ -157,7 +162,8 @@ retrieval:
       "score": 0.85,
       "title": "完整历史查询策略",
       "content": "...",
-      "success": true
+      "success": true,
+      "agent_id": "claude-code"
     }
   ],
   "formatted_prompt": "以下是我从过去与环境的交互中积累的一些记忆项..."
@@ -166,20 +172,36 @@ retrieval:
 
 ### `extract_memory`
 
-从任务轨迹中提取并保存推理经验。
+从任务轨迹中提取推理经验并保存到记忆库。
 
 **参数**：
-- `trajectory` (array): 轨迹步骤列表
-- `query` (string): 任务查询
-- `success_signal` (boolean, 可选): 成功/失败标记，null 时自动判断
+- `trajectory` (array, 必填): 任务执行的轨迹步骤列表
+  - 每个步骤包含: `step` (number), `role` (string), `content` (string), `metadata` (object, 可选)
+- `query` (string, 必填): 任务查询描述
+- `success_signal` (boolean, 可选): 任务是否成功，null 时自动判断
 - `async_mode` (boolean, 可选): 是否异步处理，默认 true
+- `agent_id` (string, 可选): Agent ID，用于多租户隔离
+  - 标记记忆属于哪个 agent
+  - 建议 SubAgent 传递自己的 name 作为 agent_id
+  - 例如：`"claude-code"`、`"java-developer"` 等
 
 **返回**（异步模式）：
 ```json
 {
   "status": "processing",
-  "message": "记忆提取任务已提交",
-  "task_id": "extract_12345"
+  "message": "记忆提取任务已提交，正在后台处理",
+  "task_id": "extract_12345",
+  "async_mode": true
+}
+```
+
+**返回**（同步模式）：
+```json
+{
+  "status": "success",
+  "message": "记忆提取成功",
+  "memory_id": "mem_123",
+  "agent_id": "claude-code"
 }
 ```
 
