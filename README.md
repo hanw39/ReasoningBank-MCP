@@ -6,6 +6,8 @@
 
 - ✅ **记忆提取**：从成功和失败的轨迹中自动提取推理经验
 - ✅ **智能检索**：支持多种检索策略（余弦相似度、混合评分等）
+- ✅ **多租户隔离**：通过 agent_id 实现不同 Agent 之间的记忆隔离
+- ✅ **双传输模式**：支持 STDIO 和 SSE 两种传输方式
 - ✅ **异步处理**：记忆提取支持异步模式，不阻塞 AI 代理
 - ✅ **多模型支持**：DashScope（通义千问）、OpenAI、Claude 等
 - ✅ **灵活扩展**：插件化架构，易于扩展新的检索策略和存储后端
@@ -252,13 +254,14 @@ embedding:
 
 ## 📖 使用示例
 
-### 在 AI 代理中使用
+### 基本使用
 
 ```python
 # 1. 任务开始前，检索相关经验
 result = await mcp_call("retrieve_memory", {
     "query": "在购物网站上找到用户最早的订单日期",
-    "top_k": 1
+    "top_k": 1,
+    "agent_id": "claude-code"  # 可选：指定 agent ID
 })
 
 # AI 获得提示：
@@ -267,15 +270,59 @@ result = await mcp_call("retrieve_memory", {
 #  不要只查看 'Recent Orders'，需要导航到完整的订单历史页面..."
 
 # 2. 执行任务（生成轨迹）
-trajectory = [...]
+trajectory = [
+    {"step": 1, "role": "user", "content": "找到最早的订单"},
+    {"step": 2, "role": "assistant", "content": "点击订单历史"},
+    {"step": 3, "role": "tool", "content": "成功找到 2020-01-15 的订单"}
+]
 
 # 3. 任务完成后，提取经验
 await mcp_call("extract_memory", {
     "trajectory": trajectory,
-    "query": query,
+    "query": "在购物网站上找到用户最早的订单日期",
+    "agent_id": "claude-code",  # 可选：标记记忆所属 agent
     "async_mode": True  # 异步处理，不阻塞
 })
 ```
+
+### 多租户隔离（Multi-Agent Isolation）
+
+使用 `agent_id` 参数实现不同 Agent 之间的记忆隔离：
+
+```python
+# 顶级 Agent (Claude Code)
+await mcp_call("retrieve_memory", {
+    "query": "优化 Python 代码性能",
+    "agent_id": "claude-code",  # 只检索 claude-code 的记忆
+    "top_k": 2
+})
+
+# 子代理 (Code Reviewer)
+await mcp_call("retrieve_memory", {
+    "query": "检查代码安全性问题",
+    "agent_id": "code-reviewer",  # 只检索 code-reviewer 的记忆
+    "top_k": 2
+})
+
+# 子代理 (Java Developer)
+await mcp_call("retrieve_memory", {
+    "query": "实现 Spring Boot API",
+    "agent_id": "java-developer",  # 只检索 java-developer 的记忆
+    "top_k": 2
+})
+
+# 不指定 agent_id：检索所有记忆
+await mcp_call("retrieve_memory", {
+    "query": "通用编程最佳实践",
+    "top_k": 3
+})
+```
+
+**记忆隔离规则**：
+- 不同 `agent_id` 的记忆完全隔离
+- 同一 `agent_id` 的记忆可跨会话共享
+- 不提供 `agent_id` 时检索所有记忆
+- 建议 SubAgent 使用自己的名称作为 `agent_id`
 
 ## 🔬 开发
 

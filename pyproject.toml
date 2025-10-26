@@ -1,6 +1,6 @@
 [project]
 name = "reasoning-bank-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "ReasoningBank MCP Server - Memory-augmented reasoning for AI agents"
 authors = [
     {name = "Wang Han", email = "hanw57276@gmail.com"}
@@ -20,6 +20,9 @@ dependencies = [
     "uvicorn>=0.23.0",
     "sse-starlette>=1.6.0",
 ]
+[project.urls]
+Homepage = "https://github.com/hanw39"
+Repository = "https://github.com/hanw39/ReasoningBank-MCP"
 
 [project.optional-dependencies]
 dev = [
