@@ -59,10 +59,10 @@ storage:
   backend: "json"  # json | sqlite | chroma
 
   json:
-#    memories_path: "~/.reasoningbank/data/memories.json"
-#    embeddings_path: "~/.reasoningbank/data/embeddings.json"
-    memories_path: "/Users/hanw/data/memories.json"
-    embeddings_path: "/Users/hanw/data/embeddings.json"
+    memories_path: "~/.reasoningbank/data/memories.json"
+    embeddings_path: "~/.reasoningbank/data/embeddings.json"
+#    memories_path: "/Users/hanw/data/memories.json"
+#    embeddings_path: "/Users/hanw/data/embeddings.json"
 
   sqlite:
     db_path: "~/.reasoningbank/data/reasoning_bank.db"

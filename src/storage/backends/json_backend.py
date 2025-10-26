@@ -14,8 +14,8 @@ class JSONStorageBackend(StorageBackend):
     """JSON 文件存储后端"""
 
     def __init__(self, config: Dict):
-        self.memories_path = Path(config.get("memories_path", "data/memories.json"))
-        self.embeddings_path = Path(config.get("embeddings_path", "data/embeddings.json"))
+        self.memories_path = Path(config.get("memories_path", "data/memories.json")).expanduser()
+        self.embeddings_path = Path(config.get("embeddings_path", "data/embeddings.json")).expanduser()
         self._lock = Lock()
 
         # 初始化文件
