@@ -81,6 +81,7 @@ class Config:
         2. 当前工作目录
         3. 项目根目录（从 src/config.py 向上查找 pyproject.toml）
         4. 用户主目录 ~/.reasoningbank/
+        5. src 目录下的 default_config.yaml（随包安装的默认配置）
         """
         path = Path(config_path)
 
@@ -110,12 +111,15 @@ class Config:
         if home_path.exists():
             return home_path
 
-        # 如果都没找到，优先使用项目根目录路径（即使不存在，错误信息也更清晰）
-        if (project_root / "pyproject.toml").exists():
-            return project_root / config_path
+        # 5. 回退到 src 目录下的默认配置（随包安装）
+        default_config = src_dir / "default_config.yaml"
+        if default_config.exists():
+            logger.info(f"使用默认配置文件: {default_config}")
+            logger.info(f"建议在以下位置创建自定义配置: {home_path}")
+            return default_config
 
-        # 最后返回当前工作目录路径
-        return cwd_path
+        # 如果都没找到，优先使用用户主目录路径（引导用户创建配置）
+        return home_path
 
     def _load_config(self):
         """加载配置文件"""

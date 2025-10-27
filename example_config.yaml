@@ -1,0 +1,82 @@
+# LLM 配置示例文件，复制文件并修改为config.yaml即可生效
+  ml就会生效
+llm:
+  provider: "dashscope"  # dashscope | openai | anthropic
+
+  # DashScope (通义千问) 配置
+  dashscope:
+    api_key: "${DASHSCOPE_API_KEY}"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    chat_model: "qwen-turbo"  # qwen-turbo | qwen-plus | qwen-max
+    temperature: 0.7
+    max_tokens: 4096
+
+  # OpenAI 配置
+  openai:
+    api_key: "${OPENAI_API_KEY?}"  # 可选，未设置时为空
+    base_url: "https://api.openai.com/v1"
+    chat_model: "gpt-4o-mini"
+    temperature: 0.7
+    max_tokens: 4096
+
+  # Anthropic 配置
+  anthropic:
+    api_key: "${ANTHROPIC_API_KEY?}"  # 可选，未设置时为空
+    chat_model: "claude-3-5-sonnet-20241022"
+    temperature: 0.7
+    max_tokens: 4096
+
+# Embedding 配置
+embedding:
+  provider: "dashscope"  # dashscope | openai
+
+  dashscope:
+    api_key: "${DASHSCOPE_API_KEY}"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model: "text-embedding-v3"
+
+  openai:
+    api_key: "${OPENAI_API_KEY?}"  # 可选，未设置时为空
+    base_url: "https://api.openai.com/v1"
+    model: "text-embedding-3-small"
+
+# 检索配置
+retrieval:
+  strategy: "hybrid"  # cosine | hybrid | llm_assisted
+  default_top_k: 1
+  max_top_k: 10
+
+  # Hybrid 策略配置
+  hybrid:
+    weights:
+      semantic: 0.6      # 语义相似度权重
+      confidence: 0.2    # 置信度权重
+      success: 0.15      # 成功偏好权重
+      recency: 0.05      # 时效性权重
+    time_decay_halflife: 30  # 时间衰减半衰期（天）
+
+# 存储配置
+storage:
+  backend: "json"  # json | sqlite | chroma
+
+  json:
+    memories_path: "~/.reasoningbank/data/memories.json"
+    embeddings_path: "~/.reasoningbank/data/embeddings.json"
+#    memories_path: "/Users/hanw/data/memories.json"
+#    embeddings_path: "/Users/hanw/data/embeddings.json"
+
+  sqlite:
+    db_path: "~/.reasoningbank/data/reasoning_bank.db"
+
+# 记忆提取配置
+extraction:
+  max_memories_per_trajectory: 3  # 每个轨迹最多提取记忆数
+  judge_temperature: 0.0          # 判断轨迹成功/失败的温度
+  extract_temperature: 1.0        # 提取记忆的温度
+  async_by_default: true          # 默认异步处理
+
+# MCP 服务器配置
+server:
+  name: "reasoning-bank"
+  version: "0.1.0"
+  log_level: "INFO"  # DEBUG | INFO | WARNING | ERROR
