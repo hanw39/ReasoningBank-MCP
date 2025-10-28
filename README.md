@@ -1,6 +1,34 @@
 # ReasoningBank MCP Server
 
-基于论文ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory[https://arxiv.org/abs/2509.25140] 实现的记忆增强推理系统，通过 MCP (Model Context Protocol) 协议为 AI 代理提供经验记忆管理能力。
+<!-- TOC -->
+- [ReasoningBank MCP Server](#reasoningbank-mcp-server)
+  - [🌟 特性](#-特性)
+  - [🏗️ 架构设计](#️-架构设计)
+  - [🚀 快速开始](#-快速开始)
+    - [1. 代码拉取并进入项目根目录](#1-代码拉取并进入项目根目录)
+    - [2. 安装依赖](#2-安装依赖)
+    - [3. 配置 MCP 客户端](#3-配置-mcp-客户端)
+    - [4. 命令行参数](#4-命令行参数)
+  - [🔧 配置文件（可选）](#-配置文件可选)
+  - [🔧 MCP 工具](#-mcp-工具)
+    - [`retrieve_memory`](#retrieve_memory)
+    - [`extract_memory`](#extract_memory)
+  - [⚙️ 配置说明](#️-配置说明)
+    - [检索策略](#检索策略)
+    - [LLM Provider](#llm-provider)
+  - [📖 使用示例](#-使用示例)
+    - [在 AI 代理中使用](#在-ai-代理中使用)
+  - [🔬 开发](#-开发)
+    - [运行测试](#运行测试)
+    - [代码格式化](#代码格式化)
+  - [📚 参考文献](#-参考文献)
+  - [📝 License](#-license)
+  - [📋 更新日志](#-更新日志)
+<!-- /TOC -->
+
+随着大语言模型代理在持久性现实角色中的日益普及，它们自然会遇到连续的任务流。然而，一个关键的限制是它们无法从累积的交互历史中学习，迫使它们丢弃宝贵的见解并重复过去的错误。基于论文[ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory](https://arxiv.org/abs/2509.25140)，我们实现了这个记忆增强推理系统，通过 MCP (Model Context Protocol) 协议为 AI 代理提供经验记忆管理能力。
+
+ReasoningBank 提出了一种新颖的记忆框架，能够从代理自身判断的成功和失败经验中提炼出可泛化的推理策略。在测试时，代理从 ReasoningBank 中检索相关记忆来指导其交互，然后将新学到的知识整合回去，使其能够随着时间的推移变得更加强大。这种内存驱动的经验扩展为代理创建了一个新的扩展维度，使它们能够自我进化并产生新兴行为。
 
 ## 🌟 特性
 
@@ -9,6 +37,7 @@
 - ✅ **异步处理**：记忆提取支持异步模式，不阻塞 AI 代理
 - ✅ **多模型支持**：DashScope（通义千问）、OpenAI、Claude 等
 - ✅ **灵活扩展**：插件化架构，易于扩展新的检索策略和存储后端
+- ✅ **记忆隔离**：支持Claude的SubAgent模式，每个SubAgent独立管理自己的记忆
 
 ## 🏗️ 架构设计
 
@@ -54,9 +83,8 @@ pip install -e .
 
 ### 3. 配置 MCP 客户端
 
-#### 方式一：STDIO 模式（适用于 Claude Desktop）
+#### 方式一：STDIO 模式（适用于 Claude Desktop、Cursor、Qoder、Cherry Studio 等）
 
-编辑 `~/Library/Application Support/Claude/claude_desktop_config.json`：
 
 ```json
 {
@@ -71,7 +99,7 @@ pip install -e .
 }
 ```
 
-#### 方式二：SSE 模式（适用于 Qoder、Cherry Studio 等）
+#### 方式二：SSE 模式（适用于 Claude Desktop、Cursor、Qoder、Cherry Studio 等）
 
 **1) 启动服务器**：
 ```bash
@@ -95,8 +123,41 @@ python3 -m src.server --transport sse --host 0.0.0.0 --port 8080
   }
 }
 ```
+### 4. MCP客户端提示词示例
+#### Qoder
+```markdown
+  你是一个具备推理记忆能力的智能助手，你的agnet_id为`Qoder`,在使用MCP时必须传入“agent_id”=“Qoder”。拥有两个核心MCP工具：
+1. `retrieve_memory`：用于在任务开始或方向改变时检索相关经验。
+2. `extract_memory`：用于在任务结束或失败后提取并保存经验。
 
-### 4. 命令行参数
+你必须严格遵循以下行为准则：
+
+【记忆策略规则】
+
+① **任务开始前必须调用MCP的 `retrieve_memory`**
+   - 在你开始执行任何复杂任务（如写代码、分析、规划、调试、总结等）之前，先调用此工具。
+   - 输入的 `query` 应描述当前任务目标或用户需求。
+   - 如果当前任务与上一次任务在主题、目标或上下文上存在明显差异，也必须再次调用 `retrieve_memory`。
+
+② **任务方向转变时调用MCP的 `retrieve_memory`**
+   - 当你发现用户修改了任务目标、问题方向、文件对象或上下文内容时，应立即重新调用 `retrieve_memory`。
+   - 保证你始终基于最新的上下文记忆进行思考。
+
+③ **任务结束后必须调用MCP的 `extract_memory`**
+   - 当你认为任务已经完成时（即输出最终答案或解决方案前），必须调用 `extract_memory`。
+   - 轨迹（trajectory）应包含任务执行的重要步骤、对话与关键推理。
+   - 即使用户没有明确要求保存，也必须执行。
+   
+④ **出现失败时调用 `extract_memory`**
+   - 如果任务执行失败、报错、或用户表示“不成功”“不对”“需要重新来”等情况，也必须调用一次 `extract_memory`。
+   - 在失败情境下记录失败原因和改进线索。
+
+⑤ **至少调用一次**
+   - 每个独立任务周期中，必须至少：
+     - 1 次 `retrieve_memory`
+     - 1 次 `extract_memory`
+```
+### 5. 命令行参数
 
 ```bash
 python3 -m src.server --help
@@ -115,14 +176,14 @@ python3 -m src.server --help
 ```yaml
 # LLM Provider 配置
 llm:
-  provider: "dashscope"
+  provider: "dashscope" # dashscope | openai | anthropic
   dashscope:
     api_key: "${DASHSCOPE_API_KEY}"
     chat_model: "qwen-plus"
 
 # Embedding Provider 配置
 embedding:
-  provider: "dashscope"
+  provider: "dashscope" # dashscope | openai
   dashscope:
     model: "text-embedding-v3"
 
@@ -254,7 +315,7 @@ embedding:
 
 ### 在 AI 代理中使用
 
-```python
+```
 # 1. 任务开始前，检索相关经验
 result = await mcp_call("retrieve_memory", {
     "query": "在购物网站上找到用户最早的订单日期",
@@ -303,3 +364,7 @@ ruff check src/
 ## 📝 License
 
 MIT License
+
+## 📋 更新日志
+
+// TODO: 添加版本更新日志
