@@ -1,6 +1,6 @@
 [project]
 name = "reasoning-bank-mcp"
-version = "0.1.1"
+version = "0.1.3"
 description = "ReasoningBank MCP Server - Memory-augmented reasoning for AI agents"
 authors = [
     {name = "Wang Han", email = "hanw57276@gmail.com"}
