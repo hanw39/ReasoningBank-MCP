@@ -20,6 +20,9 @@ dependencies = [
     "uvicorn>=0.23.0",
     "sse-starlette>=1.6.0",
 ]
+[project.urls]
+Homepage = "https://github.com/hanw39"
+Repository = "https://github.com/hanw39/ReasoningBank-MCP"
 
 [project.optional-dependencies]
 dev = [
