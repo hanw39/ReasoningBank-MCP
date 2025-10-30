@@ -25,12 +25,12 @@ class MergeFactory:
         cls._strategies[name] = strategy_class
 
     @classmethod
-    def create(cls, config: Dict[str, Any]) -> MergeStrategy:
+    def create(cls, config: Any) -> MergeStrategy:
         """
         Create a merge strategy instance based on config.
 
         Args:
-            config: Configuration dict with "merge.strategy" key
+            config: Config object with get() method
 
         Returns:
             MergeStrategy instance
@@ -38,9 +38,8 @@ class MergeFactory:
         Raises:
             ValueError: If strategy name is not registered
         """
-        # Extract merge config
-        merge_config = config.get("memory_manager", {}).get("merge", {})
-        strategy_name = merge_config.get("strategy", "voting")
+        # 使用统一的配置访问方式
+        strategy_name = config.get('memory_manager', 'merge', 'strategy', default='voting')
 
         if strategy_name not in cls._strategies:
             raise ValueError(
@@ -49,6 +48,9 @@ class MergeFactory:
             )
 
         strategy_class = cls._strategies[strategy_name]
+
+        # 获取合并配置
+        merge_config = config.get('memory_manager', 'merge', default={})
 
         return strategy_class(merge_config)
 

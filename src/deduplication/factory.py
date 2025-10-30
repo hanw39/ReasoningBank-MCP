@@ -25,12 +25,12 @@ class DeduplicationFactory:
         cls._strategies[name] = strategy_class
 
     @classmethod
-    def create(cls, config: Dict[str, Any]) -> DeduplicationStrategy:
+    def create(cls, config: Any) -> DeduplicationStrategy:
         """
         Create a deduplication strategy instance based on config.
 
         Args:
-            config: Configuration dict with "deduplication.strategy" key
+            config: Config object with get() method
 
         Returns:
             DeduplicationStrategy instance
@@ -38,10 +38,8 @@ class DeduplicationFactory:
         Raises:
             ValueError: If strategy name is not registered
         """
-        # Extract deduplication config
-        # todo 风格不统一
-        dedup_config = config.get("memory_manager", {}).get("deduplication", {})
-        strategy_name = dedup_config.get("strategy", "semantic")
+        # 使用统一的配置访问方式
+        strategy_name = config.get('memory_manager', 'deduplication', 'strategy', default='semantic')
 
         if strategy_name not in cls._strategies:
             raise ValueError(
@@ -50,6 +48,9 @@ class DeduplicationFactory:
             )
 
         strategy_class = cls._strategies[strategy_name]
+
+        # 获取去重配置
+        dedup_config = config.get('memory_manager', 'deduplication', default={})
 
         return strategy_class(dedup_config)
 

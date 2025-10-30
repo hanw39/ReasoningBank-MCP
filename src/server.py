@@ -42,7 +42,7 @@ class ReasoningBankServer:
         self.retrieve_tool = None
         self.extract_tool = None
         self.server = Server("reasoning-bank")
-
+    # todo 增强可扩展性
     async def initialize(self):
         """初始化服务器组件"""
         try:
@@ -80,11 +80,11 @@ class ReasoningBankServer:
             if self.config.get("memory_manager", "enabled", default=True):
                 logger.info("正在初始化记忆管理器...")
 
-                # 创建去重策略
-                dedup_strategy = DeduplicationFactory.create(self.config.all)
+                # 创建去重策略（传递 Config 对象）
+                dedup_strategy = DeduplicationFactory.create(self.config)
 
-                # 创建合并策略
-                merge_strategy = MergeFactory.create(self.config.all)
+                # 创建合并策略（传递 Config 对象）
+                merge_strategy = MergeFactory.create(self.config)
 
                 # 创建记忆管理器
                 self.memory_manager = MemoryManager(
