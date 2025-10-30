@@ -16,16 +16,23 @@ class JSONStorageBackend(StorageBackend):
     def __init__(self, config: Dict):
         self.memories_path = Path(config.get("memories_path", "data/memories.json")).expanduser()
         self.embeddings_path = Path(config.get("embeddings_path", "data/embeddings.json")).expanduser()
+        self.archived_path = Path(config.get("archived_path", "data/archived_memories.json")).expanduser()
         self._lock = Lock()
+
+        # Store retrieval strategy reference (injected later)
+        self.retrieval_strategy = None
 
         # 初始化文件
         self._initialize_files()
 
     def _initialize_files(self):
         """初始化 JSON 文件"""
+        # 创建所有必要的目录
         self.memories_path.parent.mkdir(parents=True, exist_ok=True)
         self.embeddings_path.parent.mkdir(parents=True, exist_ok=True)
+        self.archived_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # 初始化 memories 文件
         if not self.memories_path.exists():
             self._save_memories({
                 "version": "1.0",
@@ -33,6 +40,7 @@ class JSONStorageBackend(StorageBackend):
                 "memories": []
             })
 
+        # 初始化 embeddings 文件
         if not self.embeddings_path.exists():
             self._save_embeddings({
                 "version": "1.0",
@@ -40,6 +48,9 @@ class JSONStorageBackend(StorageBackend):
                 "embedding_dim": 0,
                 "embeddings": {}
             })
+
+        # 注意：archived 文件是可选的，只在需要时创建（在 archive_memories 方法中）
+        # 这里只确保父目录存在
 
     def _load_memories(self) -> Dict:
         """加载记忆数据"""
@@ -159,3 +170,121 @@ class JSONStorageBackend(StorageBackend):
             "failure_count": failure_count,
             "last_updated": memories_data.get("last_updated")
         }
+
+    async def save_memories(self, memories: List[Dict], embeddings: Dict[str, np.ndarray]):
+        """批量保存记忆（用于合并后保存）"""
+        memories_data = self._load_memories()
+        embeddings_data = self._load_embeddings()
+
+        for mem in memories:
+            # 添加记忆
+            memories_data["memories"].append(mem)
+
+            # 添加嵌入
+            if mem["memory_id"] in embeddings:
+                embedding_vector = embeddings[mem["memory_id"]]
+                embeddings_data["embeddings"][mem["memory_id"]] = {
+                    "query_text": mem.get("query", ""),
+                    "vector": embedding_vector.tolist() if isinstance(embedding_vector, np.ndarray) else embedding_vector,
+                    "created_at": mem.get("timestamp", datetime.now().isoformat())
+                }
+
+        # 更新元数据
+        memories_data["total_count"] = len(memories_data["memories"])
+        memories_data["last_updated"] = datetime.now().isoformat()
+        embeddings_data["last_updated"] = datetime.now().isoformat()
+
+        # 保存
+        self._save_memories(memories_data)
+        self._save_embeddings(embeddings_data)
+
+    async def get_memory(self, memory_id: str) -> Optional[Dict]:
+        """获取单个记忆（别名）"""
+        return await self.get_memory_by_id(memory_id)
+
+    async def get_embeddings(self, memory_ids: List[str]) -> Dict[str, np.ndarray]:
+        """获取指定记忆的嵌入向量"""
+        embeddings_data = self._load_embeddings()
+        result = {}
+
+        for mem_id in memory_ids:
+            if mem_id in embeddings_data["embeddings"]:
+                result[mem_id] = np.array(embeddings_data["embeddings"][mem_id]["vector"])
+
+        return result
+
+    async def archive_memories(self, memories: List[Dict]):
+        """归档记忆到 archived_memories.json"""
+        # 加载或创建归档文件
+        if self.archived_path.exists():
+            with self._lock:
+                with open(self.archived_path, 'r', encoding='utf-8') as f:
+                    archived_data = json.load(f)
+        else:
+            archived_data = {
+                "version": "1.0",
+                "description": "已归档的原始经验，不参与检索但可追溯",
+                "memories": []
+            }
+
+        # 添加新归档
+        archived_data["memories"].extend(memories)
+        archived_data["last_updated"] = datetime.now().isoformat()
+
+        # 保存
+        with self._lock:
+            with open(self.archived_path, 'w', encoding='utf-8') as f:
+                json.dump(archived_data, f, ensure_ascii=False, indent=2)
+
+    async def get_archived_memory(self, memory_id: str) -> Optional[Dict]:
+        """获取已归档的记忆"""
+        if not self.archived_path.exists():
+            return None
+
+        with self._lock:
+            with open(self.archived_path, 'r', encoding='utf-8') as f:
+                archived_data = json.load(f)
+
+        for mem in archived_data.get("memories", []):
+            if mem["memory_id"] == memory_id:
+                return mem
+
+        return None
+
+    async def delete_memories(self, memory_ids: List[str], agent_id: Optional[str] = None):
+        """删除记忆（带 agent_id 安全验证）"""
+        memories_data = self._load_memories()
+        embeddings_data = self._load_embeddings()
+
+        # 过滤掉要删除的记忆
+        deleted_count = 0
+        new_memories = []
+
+        for mem in memories_data["memories"]:
+            should_delete = False
+
+            if mem["memory_id"] in memory_ids:
+                # 如果指定了 agent_id，验证权限
+                if agent_id is None or mem.get("agent_id") == agent_id:
+                    should_delete = True
+                    deleted_count += 1
+
+                    # 同时删除对应的 embedding
+                    if mem["memory_id"] in embeddings_data["embeddings"]:
+                        del embeddings_data["embeddings"][mem["memory_id"]]
+
+            if not should_delete:
+                new_memories.append(mem)
+
+        # 更新数据
+        memories_data["memories"] = new_memories
+        memories_data["total_count"] = len(new_memories)
+        memories_data["last_updated"] = datetime.now().isoformat()
+        embeddings_data["last_updated"] = datetime.now().isoformat()
+
+        # 保存
+        self._save_memories(memories_data)
+        self._save_embeddings(embeddings_data)
+
+        return deleted_count
+

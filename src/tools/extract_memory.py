@@ -4,13 +4,12 @@ import uuid
 import asyncio
 from typing import Dict, List, Optional
 from datetime import datetime, timezone
-from hashlib import sha256
 
 
 class ExtractMemoryTool:
     """记忆提取工具"""
 
-    def __init__(self, config, storage_backend, llm_provider, embedding_provider):
+    def __init__(self, config, storage_backend, llm_provider, embedding_provider, memory_manager=None):
         """
         初始化提取工具
 
@@ -19,11 +18,13 @@ class ExtractMemoryTool:
             storage_backend: 存储后端实例
             llm_provider: LLM Provider 实例
             embedding_provider: 嵌入 Provider 实例
+            memory_manager: 记忆管理器实例（可选，用于去重和合并）
         """
         self.config = config
         self.storage = storage_backend
         self.llm = llm_provider
         self.embedding = embedding_provider
+        self.memory_manager = memory_manager
 
         # 提取配置
         extraction_config = config.get("extraction", default={})
@@ -112,12 +113,10 @@ class ExtractMemoryTool:
             # 限制数量
             memories = memories[:self.max_memories]
 
-            # 5. 保存记忆
-            saved_memories = []
+            # 5. 构建记忆项和嵌入
+            new_memories = []
+            embeddings_dict = {}
             current_time = datetime.now(timezone.utc).isoformat()
-
-            # 计算轨迹哈希（用于去重）
-            trajectory_hash = sha256(json.dumps(trajectory, sort_keys=True).encode()).hexdigest()
 
             for mem_data in memories:
                 memory_id = f"mem_{uuid.uuid4().hex}"
@@ -132,7 +131,6 @@ class ExtractMemoryTool:
                     "description": mem_data["description"],
                     "content": mem_data["content"],
                     "query": query,
-                    "trajectory_hash": trajectory_hash,
                     "retrieval_count": 0,
                     "last_retrieved": None,
                     "tags": self._extract_tags(mem_data, query),
@@ -145,7 +143,36 @@ class ExtractMemoryTool:
                 # 计算嵌入
                 embedding = await self.embedding.embed(query)
 
-                # 保存到存储
+                new_memories.append(memory)
+                embeddings_dict[memory_id] = embedding
+
+            # 6. 通过 MemoryManager 处理（去重和合并检测）
+            memories_to_save = new_memories
+            management_result = None
+
+            if self.memory_manager:
+                try:
+                    management_result = await self.memory_manager.on_memory_created(
+                        new_memories=new_memories,
+                        embeddings=embeddings_dict,
+                        agent_id=agent_id
+                    )
+
+                    # 使用去重后的记忆列表
+                    if management_result.success:
+                        memories_to_save = management_result.metadata.get("unique_memories", new_memories)
+
+                except Exception as e:
+                    # MemoryManager 失败不影响主流程
+                    import logging
+                    logging.warning(f"MemoryManager 处理失败: {e}", exc_info=True)
+
+            # 7. 保存记忆到存储
+            saved_memories = []
+            for memory in memories_to_save:
+                memory_id = memory["memory_id"]
+                embedding = embeddings_dict[memory_id]
+
                 await self.storage.add_memory(memory, embedding)
 
                 saved_memories.append({
@@ -154,12 +181,23 @@ class ExtractMemoryTool:
                     "description": memory["description"]
                 })
 
-            return {
+            # 8. 构建返回结果
+            result = {
                 "status": "completed",
                 "success": success_signal,
                 "extracted_count": len(saved_memories),
                 "memories": saved_memories
             }
+
+            # 添加管理信息
+            if management_result:
+                result["management"] = {
+                    "duplicates_skipped": management_result.duplicates_found,
+                    "merges_triggered": management_result.merged_count,
+                    "message": management_result.message
+                }
+
+            return result
 
         except Exception as e:
             return {
@@ -190,6 +228,7 @@ class ExtractMemoryTool:
             from ..prompts.templates import get_judge_prompt
 
             trajectory_text = format_trajectory(trajectory)
+            # todo 轨迹分段，A task may involve success and failure..
             judge_prompt = get_judge_prompt(query, trajectory_text)
 
             response = await self.llm.chat(

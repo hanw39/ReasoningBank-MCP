@@ -5,6 +5,7 @@ from .templates import (
     JUDGE_TRAJECTORY_PROMPT,
     get_extract_prompt,
     get_judge_prompt,
+    get_merge_prompt,
 )
 from .formatters import format_trajectory, format_memory_for_prompt
 
@@ -14,6 +15,7 @@ __all__ = [
     "JUDGE_TRAJECTORY_PROMPT",
     "get_extract_prompt",
     "get_judge_prompt",
+    "get_merge_prompt",
     "format_trajectory",
     "format_memory_for_prompt",
 ]

@@ -86,7 +86,7 @@ class RetrieveMemoryTool:
                         "description": memory.get("description", "")
                     })
 
-            # 4. 格式化为 LLM ���示
+            # 4. 格式化为 LLM 示
             formatted_prompt = self._format_for_prompt(retrieved_memories)
 
             return {

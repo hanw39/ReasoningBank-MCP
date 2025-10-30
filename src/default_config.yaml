@@ -61,6 +61,7 @@ storage:
   json:
     memories_path: "~/.reasoningbank/data/memories.json"
     embeddings_path: "~/.reasoningbank/data/embeddings.json"
+    archived_path: "~/.reasoningbank/data/archived_memories.json"
 #    memories_path: "/Users/hanw/data/memories.json"
 #    embeddings_path: "/Users/hanw/data/embeddings.json"
 
@@ -79,3 +80,41 @@ server:
   name: "reasoning-bank"
   version: "0.1.0"
   log_level: "INFO"  # DEBUG | INFO | WARNING | ERROR
+
+# 记忆管理配置
+memory_manager:
+  enabled: true  # 是否启用记忆管理器
+
+  # 去重配置
+  deduplication:
+    strategy: "semantic"  # semantic (语义去重)
+    on_extraction: true   # 在提取时实时去重
+
+    # 语义去重配置
+    semantic:
+      threshold: 0.90           # 相似度阈值（0-1）
+      top_k_check: 1            # 检查最相似的前K条记忆
+
+  # 合并配置
+  merge:
+    strategy: "llm"  # llm | voting | template
+    auto_execute: true  # 自动执行合并（后台）
+
+    # 触发条件
+    trigger:
+      min_similar_count: 3         # 最少相似记忆数
+      similarity_threshold: 0.85   # 相似度阈值
+
+    # LLM合并配置
+    llm:
+      temperature: 0.7
+
+    # Voting合并配置
+    voting:
+      min_group_size: 2
+
+    # 原记忆处理
+    original_handling: "archive"  # archive | delete | mark
+    archive:
+      keep_embeddings: false  # 归档时是否保留embedding
+

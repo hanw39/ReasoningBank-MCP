@@ -115,10 +115,7 @@ python3 -m src.server --transport sse --host 0.0.0.0 --port 8080
 {
   "mcpServers": {
     "reasoning-bank": {
-      "url": "http://127.0.0.1:8000/sse",
-      "env": {
-        "DASHSCOPE_API_KEY": "你的百炼APIKEY"
-      }
+      "url": "http://127.0.0.1:8000/sse"
     }
   }
 }

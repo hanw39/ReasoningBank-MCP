@@ -37,6 +37,7 @@ def format_trajectory(trajectory: List[Dict]) -> str:
         # 如果是 tool 角色且有工具名称
         if role == "tool" and "tool_name" in metadata:
             tool_name = metadata["tool_name"]
+            # todo action_type？
             action_type = metadata.get("action_type", "")
             if action_type:
                 role_label = f"Tool - {tool_name} ({action_type})"

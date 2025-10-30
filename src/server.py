@@ -17,6 +17,9 @@ from .llm import LLMFactory, EmbeddingFactory
 from .storage import StorageFactory
 from .retrieval import RetrievalFactory
 from .tools import RetrieveMemoryTool, ExtractMemoryTool
+from .deduplication import DeduplicationFactory
+from .merge import MergeFactory
+from .services import MemoryManager
 
 # 配置日志
 logging.basicConfig(
@@ -35,6 +38,7 @@ class ReasoningBankServer:
         self.llm = None
         self.embedding = None
         self.retrieval = None
+        self.memory_manager = None
         self.retrieve_tool = None
         self.extract_tool = None
         self.server = Server("reasoning-bank")
@@ -69,7 +73,35 @@ class ReasoningBankServer:
                 retrieval_config.get("strategy_config")
             )
 
-            # 6. 初始化工具
+            # 注入 retrieval_strategy 到 storage（用于语义去重
+            self.storage.retrieval_strategy = self.retrieval
+
+            # 6. 初始化记忆管理器（可选）
+            if self.config.get("memory_manager", "enabled", default=True):
+                logger.info("正在初始化记忆管理器...")
+
+                # 创建去重策略
+                dedup_strategy = DeduplicationFactory.create(self.config.all)
+
+                # 创建合并策略
+                merge_strategy = MergeFactory.create(self.config.all)
+
+                # 创建记忆管理器
+                self.memory_manager = MemoryManager(
+                    storage_backend=self.storage,
+                    dedup_strategy=dedup_strategy,
+                    merge_strategy=merge_strategy,
+                    embedding_provider=self.embedding,
+                    llm_provider=self.llm,
+                    config=self.config.all
+                )
+
+                logger.info(f"  - 去重策略: {dedup_strategy.name}")
+                logger.info(f"  - 合并策略: {merge_strategy.name}")
+            else:
+                logger.info("记忆管理器已禁用")
+
+            # 7. 初始化工具
             logger.info("正在初始化 MCP 工具...")
             self.retrieve_tool = RetrieveMemoryTool(
                 self.config,
@@ -82,7 +114,8 @@ class ReasoningBankServer:
                 self.config,
                 self.storage,
                 self.llm,
-                self.embedding
+                self.embedding,
+                self.memory_manager  # 传递记忆管理器
             )
 
             logger.info("✓ 服务器组件初始化完成")
@@ -90,6 +123,10 @@ class ReasoningBankServer:
             logger.info(f"  - Embedding: {self.embedding.get_provider_name()}")
             logger.info(f"  - 检索策略: {self.retrieval.get_name()}")
             logger.info(f"  - 存储后端: {storage_config.get('backend', 'json')}")
+            if self.memory_manager:
+                logger.info(f"  - 记忆管理: 已启用")
+            else:
+                logger.info(f"  - 记忆管理: 已禁用")
 
         except Exception as e:
             logger.error(f"✗ 服务器初始化失败: {e}")
@@ -97,7 +134,7 @@ class ReasoningBankServer:
 
     def setup_handlers(self):
         """设置 MCP 处理器"""
-        # todo 描述得强制些吧 JSON是不是得放在相对路径
+        # todo 描述得强制些吧 JSON是不是得放在相对路径（2）完善工具描述
         @self.server.list_tools()
         async def list_tools() -> list[Tool]:
             """列出可用的工具"""
@@ -133,7 +170,7 @@ class ReasoningBankServer:
                         "properties": {
                             "trajectory": {
                                 "type": "array",
-                                "description": "任务执行的轨迹步骤列表",
+                                "description": "任务执行的轨迹步骤列表,可以在metadata中放入tool名称",
                                 "items": {
                                     "type": "object",
                                     "properties": {
