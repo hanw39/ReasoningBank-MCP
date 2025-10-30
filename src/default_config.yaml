@@ -44,6 +44,7 @@ retrieval:
   strategy: "hybrid"  # cosine | hybrid | llm_assisted
   default_top_k: 1
   max_top_k: 10
+  min_score_threshold: 0.85  # 最小相关度阈值，低于此值的记忆不会被返回
 
   # Hybrid 策略配置
   hybrid:

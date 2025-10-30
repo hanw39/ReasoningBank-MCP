@@ -211,6 +211,7 @@ embedding:
 # 检索策略配置
 retrieval:
   strategy: "hybrid"
+  min_score_threshold: 0.85  # 最小相关度阈值
   hybrid:
     weights:
       semantic: 0.6
@@ -261,10 +262,12 @@ memory_manager:
 ```json
 {
   "status": "success",
+  "min_score_threshold": 0.85,
+  "filtered_count": 2,
   "memories": [
     {
       "memory_id": "mem_001",
-      "score": 0.85,
+      "score": 0.92,
       "title": "完整历史查询策略",
       "content": "...",
       "success": true,
@@ -274,6 +277,11 @@ memory_manager:
   "formatted_prompt": "以下是我从过去与环境的交互中积累的一些记忆项..."
 }
 ```
+
+**说明**：
+- `min_score_threshold`: 使用的最小相关度阈值
+- `filtered_count`: 被过滤掉的低相关度记忆数量
+- `score`: 记忆的相关度分数（0.0-1.0），只返回高于阈值的记忆
 
 ### `extract_memory`
 
@@ -323,9 +331,18 @@ memory_manager:
    - 成功偏好 (15%)
    - 时效性 (5%)
 
+#### 相关度阈值过滤
+
+通过 `min_score_threshold` 配置项可以过滤低相关度的记忆：
+
+- **默认值**: 0.85（即相关度低于 85% 的记忆不会返回）
+- **作用**: 确保返回的记忆都与当前查询高度相关
+- **效果**: 提高记忆质量，避免低质量记忆干扰决策
+
 ```yaml
 retrieval:
   strategy: "hybrid"
+  min_score_threshold: 0.85  # 可调整，范围 0.0-1.0
   hybrid:
     weights:
       semantic: 0.6
@@ -333,6 +350,11 @@ retrieval:
       success: 0.15
       recency: 0.05
 ```
+
+**推荐配置**：
+- 严格模式：0.90+ （只返回高度相关的记忆）
+- 标准模式：0.85 （平衡相关性和召回率）
+- 宽松模式：0.75 （更多候选记忆）
 
 ### LLM Provider
 

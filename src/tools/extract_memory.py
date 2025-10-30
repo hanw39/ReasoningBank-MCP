@@ -140,8 +140,9 @@ class ExtractMemoryTool:
                     }
                 }
 
-                # 计算嵌入
-                embedding = await self.embedding.embed(query)
+                # 计算嵌入：对记忆内容进行向量化，而不是查询
+                memory_text = f"{mem_data['title']}  {mem_data['description']} {mem_data['content']}"
+                embedding = await self.embedding.embed(memory_text)
 
                 new_memories.append(memory)
                 embeddings_dict[memory_id] = embedding

@@ -42,6 +42,9 @@ class RetrieveMemoryTool:
         max_top_k = self.config.get("retrieval", "max_top_k", default=10)
         top_k = min(top_k, max_top_k)
 
+        # 获取最小分数阈值
+        min_score_threshold = self.config.get("retrieval", "min_score_threshold", default=0.85)
+
         try:
             # 1. 对查询进行嵌入
             query_embedding = await self.embedding.embed(query)
@@ -65,11 +68,17 @@ class RetrieveMemoryTool:
                     "formatted_prompt": ""
                 }
 
-            # 3. 获取完整记忆内容并更新统计
+            # 3. 获取完整记忆内容并更新统计（过滤低分记忆）
             retrieved_memories = []
             current_time = datetime.now(timezone.utc).isoformat()
+            filtered_count = 0  # 记录被过滤的数量
 
             for memory_id, score in top_k_results:
+                # 过滤低于阈值的记忆
+                if score < min_score_threshold:
+                    filtered_count += 1
+                    continue
+
                 memory = await self.storage.get_memory_by_id(memory_id)
                 if memory:
                     # 更新检索统计
@@ -86,7 +95,19 @@ class RetrieveMemoryTool:
                         "description": memory.get("description", "")
                     })
 
-            # 4. 格式化为 LLM 示
+            # 如果所有记忆都被过滤了
+            if not retrieved_memories:
+                return {
+                    "status": "no_memories",
+                    "message": f"没有找到相关度高于 {min_score_threshold} 的记忆（过滤了 {filtered_count} 条低相关度记忆）",
+                    "query": query,
+                    "min_score_threshold": min_score_threshold,
+                    "filtered_count": filtered_count,
+                    "memories": [],
+                    "formatted_prompt": ""
+                }
+
+            # 4. 格式化为 LLM 提示
             formatted_prompt = self._format_for_prompt(retrieved_memories)
 
             return {
@@ -94,6 +115,8 @@ class RetrieveMemoryTool:
                 "query": query,
                 "retrieval_strategy": self.retrieval.get_name(),
                 "top_k": top_k,
+                "min_score_threshold": min_score_threshold,
+                "filtered_count": filtered_count,
                 "memories": retrieved_memories,
                 "formatted_prompt": formatted_prompt
             }
