@@ -13,13 +13,15 @@ from starlette.responses import Response
 import uvicorn
 
 from .config import load_config
-from .llm import LLMFactory, EmbeddingFactory
-from .storage import StorageFactory
-from .retrieval import RetrievalFactory
-from .tools import RetrieveMemoryTool, ExtractMemoryTool
-from .deduplication import DeduplicationFactory
-from .merge import MergeFactory
-from .services import MemoryManager
+from .initializers import (
+    InitializerRegistry,
+    StorageInitializer,
+    LLMInitializer,
+    EmbeddingInitializer,
+    RetrievalInitializer,
+    MemoryManagerInitializer,
+    ToolsInitializer
+)
 
 # 配置日志
 logging.basicConfig(
@@ -42,86 +44,48 @@ class ReasoningBankServer:
         self.retrieve_tool = None
         self.extract_tool = None
         self.server = Server("reasoning-bank")
-    # todo 增强可扩展性
     async def initialize(self):
-        """初始化服务器组件"""
+        """初始化服务器组件（使用自动化初始化器架构）"""
         try:
             # 1. 加载配置
             logger.info("正在加载配置...")
             self.config = load_config()
 
-            # 2. 初始化存储后端
-            logger.info("正在初始化存储后端...")
-            storage_config = self.config.get_storage_config()
-            self.storage = StorageFactory.create(storage_config)
+            # 2. 创建初始化器注册表
+            registry = InitializerRegistry()
 
-            # 3. 初始化 LLM Provider
-            logger.info("正在初始化 LLM Provider...")
-            llm_config = self.config.get_llm_config()
-            self.llm = LLMFactory.create(llm_config)
+            # 3. 自动注册所有组件初始化器
+            # 新增组件只需在此列表中添加对应的初始化器类即可
+            registry.auto_register([
+                StorageInitializer,
+                LLMInitializer,
+                EmbeddingInitializer,
+                RetrievalInitializer,
+                MemoryManagerInitializer,
+                ToolsInitializer,
+            ], self.config)
 
-            # 4. 初始化 Embedding Provider
-            logger.info("正在初始化 Embedding Provider...")
-            embedding_config = self.config.get_embedding_config()
-            self.embedding = EmbeddingFactory.create(embedding_config)
+            # 4. 按依赖顺序自动初始化所有组件
+            components = await registry.initialize_all(self.config)
 
-            # 5. 初始化检索策略
-            logger.info("正在初始化检索策略...")
-            retrieval_config = self.config.get_retrieval_config()
-            self.retrieval = RetrievalFactory.create(
-                retrieval_config["strategy"],
-                retrieval_config.get("strategy_config")
-            )
+            # 5. 将组件赋值到实例属性
+            self.storage = components.get("storage")
+            self.llm = components.get("llm")
+            self.embedding = components.get("embedding")
+            self.retrieval = components.get("retrieval")
+            self.memory_manager = components.get("memory_manager")
 
-            # 注入 retrieval_strategy 到 storage（用于语义去重
-            self.storage.retrieval_strategy = self.retrieval
+            # tools 返回的是字典
+            tools = components.get("tools", {})
+            self.retrieve_tool = tools.get("retrieve_tool")
+            self.extract_tool = tools.get("extract_tool")
 
-            # 6. 初始化记忆管理器（可选）
-            if self.config.get("memory_manager", "enabled", default=True):
-                logger.info("正在初始化记忆管理器...")
-
-                # 创建去重策略（传递 Config 对象）
-                dedup_strategy = DeduplicationFactory.create(self.config)
-
-                # 创建合并策略（传递 Config 对象）
-                merge_strategy = MergeFactory.create(self.config)
-
-                # 创建记忆管理器
-                self.memory_manager = MemoryManager(
-                    storage_backend=self.storage,
-                    dedup_strategy=dedup_strategy,
-                    merge_strategy=merge_strategy,
-                    embedding_provider=self.embedding,
-                    llm_provider=self.llm,
-                    config=self.config.all
-                )
-
-                logger.info(f"  - 去重策略: {dedup_strategy.name}")
-                logger.info(f"  - 合并策略: {merge_strategy.name}")
-            else:
-                logger.info("记忆管理器已禁用")
-
-            # 7. 初始化工具
-            logger.info("正在初始化 MCP 工具...")
-            self.retrieve_tool = RetrieveMemoryTool(
-                self.config,
-                self.storage,
-                self.embedding,
-                self.retrieval
-            )
-
-            self.extract_tool = ExtractMemoryTool(
-                self.config,
-                self.storage,
-                self.llm,
-                self.embedding,
-                self.memory_manager  # 传递记忆管理器
-            )
-
+            # 6. 输出初始化总结
             logger.info("✓ 服务器组件初始化完成")
             logger.info(f"  - LLM: {self.llm.get_provider_name()}")
             logger.info(f"  - Embedding: {self.embedding.get_provider_name()}")
             logger.info(f"  - 检索策略: {self.retrieval.get_name()}")
+            storage_config = self.config.get_storage_config()
             logger.info(f"  - 存储后端: {storage_config.get('backend', 'json')}")
             if self.memory_manager:
                 logger.info(f"  - 记忆管理: 已启用")
